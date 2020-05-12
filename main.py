@@ -84,7 +84,7 @@ while True:
 
     if key & 0xFF == ord('2'):
         th = not th
-        print("Tresholding" + str(th))
+        print("Threshold" + str(th))
 
     if key & 0xFF == ord('3'):
         motion = not motion
