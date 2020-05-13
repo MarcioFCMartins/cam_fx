@@ -4,6 +4,8 @@ from apply_filters import threshhold
 from apply_filters import detect_motion
 from apply_filters import low_pass
 from apply_filters import sort_pixels
+from apply_filters import circlify
+from apply_filters import circlify_movement
 
 
 # Function that does nothing - used for trackbars
@@ -19,20 +21,21 @@ cam = cv2.VideoCapture(0)
 cv2.namedWindow("Controls")
 cv2.createTrackbar("Threshold", "Controls", 0, 100, nothing)
 cv2.createTrackbar("Sort axis", "Controls", 0, 2, nothing)
+cv2.createTrackbar("Downsampling", "Controls", 10, 15, nothing)
 # Initialize states for different filters
 bw = False
 th = False
 motion = False
 lp = False
-# Quantization, currently only sorts the pixels based on largest range axis
 sort = False
+circle = False
+circle_movement = False
 
-# loops to capture, process and display frames until q is pressed
-# in_frame = current capture from cam
-# p_frame = last capture from the cam
-# out_frame = image to be displayed
+# Tracks when filters are changed and when circlify is started
 skip_frame = False
+circlify_index = 0
 
+# loops to capture, process and display frames
 while True:
     # Get input image
     # ret - bool for successful/failed capture
@@ -45,6 +48,11 @@ while True:
     # Get parameters for filters from track bars
     controller = cv2.getTrackbarPos("Threshold", "Controls") / 100
     sort_axis = cv2.getTrackbarPos("Sort axis", "Controls")
+    sampling_factor = cv2.getTrackbarPos("Downsampling", "Controls")
+
+    # Reset circlify counter when filter is turned off
+    if not circle_movement:
+        circlify_index = 0
 
     # Apply selected filters
     # bw filter is always applied first, so that other algorithms are run on it
@@ -56,23 +64,36 @@ while True:
     if not skip_frame:
 
         if lp:
-            out_frame = low_pass(controller, in_frame, p_frame)
+            out_frame = low_pass(controller, in_frame, p_frame_raw)
 
         if th:
             out_frame = threshhold(controller, in_frame)
 
         if motion:
-            out_frame = detect_motion(controller, in_frame, p_frame)
+            out_frame = detect_motion(in_frame, p_frame_raw)
 
         if sort:
             out_frame = sort_pixels(out_frame, sort_axis)
 
+        if circle:
+            out_frame = circlify(sampling_factor, out_frame)
+
+        if circle_movement:
+            # If this filter was just turned on, circlify whole image as a first step
+            if circlify_index == 0:
+                p_frame_processed = circlify(sampling_factor, out_frame)
+            # Then use circlified image as background to apply  changes
+            out_frame = circlify_movement(sampling_factor, out_frame, p_frame_raw, p_frame_processed)
+            circlify_index += 1
+
     # display image
     cv2.imshow("frame", out_frame)
-    # Save current frame for next loop
-    p_frame = in_frame
+    # Save current frame for next loop - in raw and processed formats
+    p_frame_raw = in_frame
+    p_frame_processed = out_frame
 
     # Program control - key based
+    # I really need to put most of these bools in a list to make this easier
     key = cv2.waitKey(1)
 
     if key & 0xFF == ord('q'):
@@ -98,13 +119,29 @@ while True:
         sort = not sort
         print("Pixel sorting " + str(sort))
 
+    if key & 0xFF == ord('6'):
+        circle = not circle
+        print("Circlification " + str(circle))
+
+    if key & 0xFF == ord('7'):
+        circle_movement = not circle_movement
+        print("Circlification " + str(circle_movement))
+
+    if key & 0xFF == ord('s'):
+        bw = False
+        th = False
+        motion = False
+        lp = False
+        sort = False
+        circle = False
+        circle_movement = False
+        print("All filters are now OFF")
+
     if key != -1:
         skip_frame = True
 
     if key == -1:
         skip_frame = False
-
-
 
 cam.release()
 cv2.destroyAllWindows()

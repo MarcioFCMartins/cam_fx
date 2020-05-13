@@ -2,10 +2,13 @@
 
 # Some functions already present in OpenCV were re-implemented for learning purposes
 # Includes some custom functions based on https://www.youtube.com/watch?v=mRM5Js3VLCk
-# Color quantization based on my old R project https://github.com/MarcioFCMartins/Color_Quantization
 # http://www.flong.com/texts/essays/essay_cvad/
+# TODO Implement edge detection to learn convultions
+# https://www.youtube.com/watch?v=uihBwtPIBxM
+# https://www.youtube.com/watch?v=sRFM5IEqR2w
 import cv2
 import numpy as np
+import random
 
 
 def gray_scale(frame):
@@ -18,7 +21,7 @@ def threshhold(value, frame):
 
 
 # The simplest motion detection possible is the absolute difference between frames
-def detect_motion(value, current_frame, previous_frame):
+def detect_motion(current_frame, previous_frame):
     frame = cv2.absdiff(current_frame, previous_frame)
     return frame
 
@@ -88,3 +91,65 @@ def sort_pixels(current_frame, axis):
         current_frame = sorted_frame.reshape((480, 640))
 
     return current_frame
+
+
+def circlify(sampling_factor, current_frame):
+    # Convert downsampling to 0.01-1 range
+    sampling_factor = 1 if sampling_factor < 1 else sampling_factor
+    sampling_factor = sampling_factor / 100
+
+    # Downsample input frame
+    ds_frame = cv2.resize(current_frame, None, fx=sampling_factor, fy=sampling_factor)
+
+    # Create white array (8 bit integer) for background
+    frame = np.full(current_frame.shape, 255, np.uint8)
+    radius = round(current_frame.shape[1] / ds_frame.shape[1] / 2)
+    # Loop over downsampled pixels, extract color. Drawn circles of correct color over white background
+    for row in range(ds_frame.shape[1]):
+        for col in range(ds_frame.shape[0]):
+            # Extract color
+            color = tuple(ds_frame[col, row, :])
+            # Cast elements to integer
+            color = (int(color[0]), int(color[1]), int(color[2]))
+            # Draw circle
+            frame = cv2.circle(frame, (round(row / sampling_factor), round(col / sampling_factor)), radius, color, -1)
+
+    return frame
+
+
+def circlify_movement(sampling_factor, current_frame, previous_frame, previous_frame_processed):
+    # Convert downsampling to 0.01-1 range
+    sampling_factor = 1 if sampling_factor < 1 else sampling_factor
+    sampling_factor = sampling_factor / 100
+
+    # Downsample input frame
+    ds_frame = cv2.resize(current_frame, None, fx=sampling_factor, fy=sampling_factor)
+
+    # Create mask of pixels where movement occurred
+    movement = detect_motion(current_frame, previous_frame)
+    movement = cv2.cvtColor(movement, cv2.COLOR_BGR2GRAY)
+    movement = cv2.resize(movement, None, fx=sampling_factor, fy=sampling_factor)
+    ret, movement = cv2.threshold(movement, int(round(0.1 * 255)), 255, cv2.THRESH_BINARY)
+
+    frame = previous_frame_processed
+
+    # Calculate circle radius
+    radius = round(current_frame.shape[1] / ds_frame.shape[1] / 2)
+
+    # Loop over downsampled image, extract color. If movement occurred, draw circle corresponding to that pixel
+    for row in range(ds_frame.shape[1]):
+        for col in range(ds_frame.shape[0]):
+            if movement[col, row] == 255:
+                # Extract color
+                color = tuple(ds_frame[col, row, :])
+                color = (int(color[0]), int(color[1]), int(color[2]))
+
+                # Create random noise for position
+                noise_x = 0  # round((random.random() - 0.5) / (sampling_factor * 2))
+                noise_y = 0  # round((random.random() - 0.5) / (sampling_factor * 2))
+                # Draw circle
+                frame = cv2.circle(frame,
+                                   (round(row / sampling_factor) + noise_x, round(col / sampling_factor) + noise_y),
+                                   radius, color, -1)
+
+    return frame
