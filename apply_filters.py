@@ -8,6 +8,7 @@
 # https://www.youtube.com/watch?v=sRFM5IEqR2w
 import cv2
 import numpy as np
+import math
 import random
 
 
@@ -152,11 +153,41 @@ def circlify_movement(sampling_factor, current_frame, previous_frame, previous_f
                     color = int(ds_frame[col, row])
 
                 # Create random noise for position
-                noise_x = 0  # round((random.random() - 0.5) / (sampling_factor * 2))
-                noise_y = 0  # round((random.random() - 0.5) / (sampling_factor * 2))
+                noise_x = round((random.random() - 0.5) / (sampling_factor * 2))
+                noise_y = round((random.random() - 0.5) / (sampling_factor * 2))
                 # Draw circle
                 frame = cv2.circle(frame,
                                    (round(row / sampling_factor) + noise_x, round(col / sampling_factor) + noise_y),
                                    radius, color, -1)
 
     return frame
+
+
+def vectorify(sampling_factor, current_frame):
+    # Create white array (8 bit integer) for background
+    frame = np.full(current_frame.shape, 255, np.uint8)
+
+
+    # Convert downsampling to 0.01-1 range
+    sampling_factor = 1 if sampling_factor < 1 else sampling_factor
+    sampling_factor = sampling_factor / 100
+    # Downsample input frame
+    ds_frame = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
+    ds_frame = cv2.resize(ds_frame, None, fx=sampling_factor, fy=sampling_factor)
+
+    radius = round(current_frame.shape[1] / ds_frame.shape[1] / 2)
+    angle_factor = 255 / (math.pi/2)
+    # Loop over downsampled pixels, extract color. Drawn circles of correct color over white background
+    for row in range(ds_frame.shape[1]):
+        for col in range(ds_frame.shape[0]):
+            angle = ds_frame[col, row]/angle_factor
+            center = (round(row / sampling_factor), round(col / sampling_factor))
+            p1 = (int(radius * math.cos(angle) + center[0]), int(radius * math.sin(angle) + center[1]))
+            p2 = (int(radius * math.cos(angle - math.pi) + center[0]), int(radius * math.sin(angle - math.pi) + center[1]))
+
+            # Draw circle
+            frame = cv2.line(frame, p1, p2, (0, 0, 0))
+
+    return frame
+
+

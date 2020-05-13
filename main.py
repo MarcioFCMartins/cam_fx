@@ -7,6 +7,7 @@ from apply_filters import low_pass
 from apply_filters import sort_pixels
 from apply_filters import circlify
 from apply_filters import circlify_movement
+from apply_filters import vectorify
 
 
 # Function that does nothing - used for trackbars
@@ -31,6 +32,7 @@ lp = False
 sort = False
 circle = False
 circle_movement = False
+vector = False
 
 # Tracks when filters are changed and when circlify is started
 skip_frame = False
@@ -90,10 +92,13 @@ while True:
             out_frame = circlify_movement(sampling_factor, out_frame, p_frame_raw, p_frame_processed)
             circlify_index += 1
 
+        if vector:
+            out_frame = vectorify(sampling_factor, out_frame)
+
     # display image
 
     final_image = np.concatenate((raw_frame, out_frame), axis = 1)
-    print(final_image.shape)
+
     cv2.imshow("frame", final_image)
     # Save current frame for next loop - in raw and processed formats
     p_frame_raw = in_frame
@@ -134,6 +139,10 @@ while True:
         circle_movement = not circle_movement
         print("Circlification " + str(circle_movement))
 
+    if key & 0xFF == ord('8'):
+        vector = not vector
+        print("Circlification " + str(circle_movement))
+
     if key & 0xFF == ord('s'):
         bw = False
         th = False
@@ -142,6 +151,7 @@ while True:
         sort = False
         circle = False
         circle_movement = False
+        vector = False
         print("All filters are now OFF")
 
     if key != -1:
