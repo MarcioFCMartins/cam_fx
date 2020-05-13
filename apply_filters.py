@@ -12,7 +12,8 @@ import random
 
 
 def gray_scale(frame):
-    return cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    return cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
 
 
 def threshhold(value, frame):
@@ -107,10 +108,12 @@ def circlify(sampling_factor, current_frame):
     # Loop over downsampled pixels, extract color. Drawn circles of correct color over white background
     for row in range(ds_frame.shape[1]):
         for col in range(ds_frame.shape[0]):
-            # Extract color
-            color = tuple(ds_frame[col, row, :])
-            # Cast elements to integer
-            color = (int(color[0]), int(color[1]), int(color[2]))
+            if np.ndim(current_frame) == 3:
+                color = tuple(ds_frame[col, row, :])
+                color = (int(color[0]), int(color[1]), int(color[2]))
+            elif np.ndim(current_frame) == 2:
+                color = int(ds_frame[col, row])
+
             # Draw circle
             frame = cv2.circle(frame, (round(row / sampling_factor), round(col / sampling_factor)), radius, color, -1)
 
@@ -127,7 +130,8 @@ def circlify_movement(sampling_factor, current_frame, previous_frame, previous_f
 
     # Create mask of pixels where movement occurred
     movement = detect_motion(current_frame, previous_frame)
-    movement = cv2.cvtColor(movement, cv2.COLOR_BGR2GRAY)
+    if np.ndim(movement) == 3:
+        movement = cv2.cvtColor(movement, cv2.COLOR_BGR2GRAY)
     movement = cv2.resize(movement, None, fx=sampling_factor, fy=sampling_factor)
     ret, movement = cv2.threshold(movement, int(round(0.1 * 255)), 255, cv2.THRESH_BINARY)
 
@@ -141,8 +145,11 @@ def circlify_movement(sampling_factor, current_frame, previous_frame, previous_f
         for col in range(ds_frame.shape[0]):
             if movement[col, row] == 255:
                 # Extract color
-                color = tuple(ds_frame[col, row, :])
-                color = (int(color[0]), int(color[1]), int(color[2]))
+                if np.ndim(current_frame) == 3:
+                    color = tuple(ds_frame[col, row, :])
+                    color = (int(color[0]), int(color[1]), int(color[2]))
+                elif np.ndim(current_frame) == 2:
+                    color = int(ds_frame[col, row])
 
                 # Create random noise for position
                 noise_x = 0  # round((random.random() - 0.5) / (sampling_factor * 2))

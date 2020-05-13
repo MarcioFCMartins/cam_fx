@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 from apply_filters import gray_scale
 from apply_filters import threshhold
 from apply_filters import detect_motion
@@ -39,10 +40,13 @@ circlify_index = 0
 while True:
     # Get input image
     # ret - bool for successful/failed capture
-    # frame - image array
-    ret, in_frame = cam.read()
+    # raw_frame - image array
+    ret, raw_frame = cam.read()
 
-    # Define output image (currently no processing)
+    # Make a copy of raw_frame for input to filters. Raw_frame will never be changed
+    in_frame = raw_frame
+
+    # Define output image for displaying - at this stage a copy of in_frame
     out_frame = in_frame
 
     # Get parameters for filters from track bars
@@ -55,12 +59,12 @@ while True:
         circlify_index = 0
 
     # Apply selected filters
-    # bw filter is always applied first, so that other algorithms are run on it
+    # bw filter is always applied first, so that other algorithms are run on it - modifies the in_frame
     if bw:
         out_frame = gray_scale(in_frame)
         in_frame = out_frame
 
-    # Some filters will crash when transitioning bw - color. Skip them for one frame
+    # Filters applied to the in_frame or, if they can be stacked, to the out_frame of previous filters
     if not skip_frame:
 
         if lp:
@@ -87,7 +91,10 @@ while True:
             circlify_index += 1
 
     # display image
-    cv2.imshow("frame", out_frame)
+
+    final_image = np.concatenate((raw_frame, out_frame), axis = 1)
+    print(final_image.shape)
+    cv2.imshow("frame", final_image)
     # Save current frame for next loop - in raw and processed formats
     p_frame_raw = in_frame
     p_frame_processed = out_frame
