@@ -8,12 +8,13 @@ from apply_filters import sort_pixels
 from apply_filters import circlify
 from apply_filters import circlify_movement
 from apply_filters import vectorify
+import blob_helpers
+import random
 
-
+##### Set up GUI
 # Function that does nothing - used for trackbars
 def nothing(x):
     pass
-
 
 # https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_gui/py_video_display/py_video_display.html
 cam = cv2.VideoCapture(0)
@@ -24,6 +25,8 @@ cv2.namedWindow("Controls")
 cv2.createTrackbar("Threshold", "Controls", 0, 100, nothing)
 cv2.createTrackbar("Sort axis", "Controls", 0, 2, nothing)
 cv2.createTrackbar("Downsampling", "Controls", 10, 15, nothing)
+
+##### Filter switches
 # Initialize states for different filters
 bw = False
 th = False
@@ -33,12 +36,19 @@ sort = False
 circle = False
 circle_movement = False
 vector = False
+blobs = False
 
 # Tracks when filters are changed and when circlify is started
 skip_frame = False
 circlify_index = 0
 
-# loops to capture, process and display frames
+create_blobs = False
+
+
+face_cascade = cv2.CascadeClassifier("data\\haarcascade_frontalface_default.xml")
+
+
+##### Image capture and processing
 while True:
     # Get input image
     # ret - bool for successful/failed capture
@@ -95,6 +105,30 @@ while True:
         if vector:
             out_frame = vectorify(sampling_factor, out_frame)
 
+        if blobs:
+            if create_blobs:
+                blob_list = list()
+                for i in range(10):
+                    noise = int(random.random() * 100) - 50
+                    blob_list.append(blob_helpers.floatBlob((300 + noise, 250 + noise), (noise/10,noise/10), 10))
+            else:
+                gray = cv2.cvtColor(raw_frame, cv2.COLOR_BGR2GRAY)
+                faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+                if len(faces) == 0:
+                    center = blob_helpers.attractor((300, 250), 10)
+                else:
+                    center = blob_helpers.attractor((faces[0,0] + faces[0,2]/2, faces[0,1] + faces[0, 3]/2), 10)
+
+                out_frame = center.draw(out_frame)
+
+                for blob in blob_list:
+                    blob.attract(center)
+                    print(blob.vel)
+                    out_frame = blob.draw(out_frame)
+
+            create_blobs = False
+
     # display image
 
     final_image = np.concatenate((raw_frame, out_frame), axis = 1)
@@ -141,7 +175,12 @@ while True:
 
     if key & 0xFF == ord('8'):
         vector = not vector
-        print("Circlification " + str(circle_movement))
+        print("Vectors " + str(vector))
+
+    if key & 0xFF == ord('9'):
+        blobs = not blobs
+        create_blobs = True
+        print("Blobs " + str(blobs))
 
     if key & 0xFF == ord('s'):
         bw = False
@@ -152,6 +191,7 @@ while True:
         circle = False
         circle_movement = False
         vector = False
+        blobs = False
         print("All filters are now OFF")
 
     if key != -1:
