@@ -8,5 +8,5 @@ setup(
     license='',
     author='Márcio Martins',
     author_email='',
-    description='Useless app that applies effects to image captured from webcam. Learning purposes only'
+    description='Simple program that applies effects to image captured from webcam. For learning purposes only'
 )

@@ -138,8 +138,8 @@ while True:
     p_frame_raw = in_frame
     p_frame_processed = out_frame
 
-    # Program control - key based
-    # I really need to put most of these bools in a list to make this easier
+    # Program control - keyboard based
+    # I should put all these bools in a list and change this logic to a function
     key = cv2.waitKey(1)
 
     if key & 0xFF == ord('q'):
